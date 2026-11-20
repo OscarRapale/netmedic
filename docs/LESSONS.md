@@ -10,7 +10,7 @@ Update this at the end of every session. Newest entry first.
 
 | Date | Lesson | Status | Notes / next step |
 | --- | --- | --- | --- |
-| 2026-11-20 | L0 Project setup | Done | uv project (Python 3.13, packaged `src/netmedic/` layout), ruff + pytest 9 config, `.gitignore`/`.gitattributes`/`.env.example`, first commit. Next: create the GitHub repo, then L1 network model |
+| 2026-11-20 | L0 Project setup | Done | uv project (Python 3.13, packaged `src/netmedic/` layout), ruff + pytest 9 config, `.gitignore`/`.gitattributes`/`.env.example`, first commit, pushed to public GitHub repo `OscarRapale/netmedic` (branch `main`). Docker Desktop running (≈6.7 GB for Docker). Next: L1 network model |
 | 2026-11-19 | Setup | Starter files added | Next: Lesson 0, project setup |
 
 **Open questions** (raised in the spec review on 2026-11-20; decide before the lesson named):
@@ -23,7 +23,7 @@ Update this at the end of every session. Newest entry first.
 - CI smoke eval gate (10 scenarios × 1 run, 10-point threshold) will be flaky and costs money per
   push. Decide in L20.
 - LangFuse self-hosted (needs ClickHouse, Redis, blob storage) vs LangFuse Cloud free tier. Check
-  before L10.
+  before L10. Docker Desktop currently has ≈6.7 GB of memory, shared with Postgres and our services.
 - Local embedding/re-ranking libraries may pull in PyTorch (large on Windows and in images);
   consider an ONNX-based library. Check before L13.
 - Windows has no `make`: choose a task runner. Decide in L18.
