@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets: real values live only in .env (never committed); .env.example is the template
+.env
+.env.*
+!.env.example
+
+# Tool caches (they also ignore themselves, but being explicit is clearer)
+.ruff_cache/
+.pytest_cache/

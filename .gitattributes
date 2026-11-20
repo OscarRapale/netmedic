@@ -1,0 +1,8 @@
+# Store text files with LF line endings in the repo and check them out with LF everywhere,
+# so Windows, Linux CI and Docker images all see identical files.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF, which cmd.exe and PowerShell expect.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
