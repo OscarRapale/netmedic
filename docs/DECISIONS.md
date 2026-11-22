@@ -112,3 +112,55 @@ doubles as interview preparation: each entry is an answer to "why did you do it 
   the same style as real code (see bug B-001 in the study notes). `importlib` mode avoids clashes
   between same-named test files; `strict` turns config and marker typos into errors.
 - **Revisit if:** we want stricter linting (`SIM`, `RUF`) once there is real code.
+
+## D-011: Dataclasses inside the simulator, Pydantic at the boundaries
+- **Date / lesson:** 2026-11-21, L1
+- **Decision:** the simulator's network model uses standard-library dataclasses
+  (`slots=True, kw_only=True`, mutable). Pydantic models appear only where data crosses a service
+  boundary (simulator API, MCP tool inputs and outputs, the diagnosis report).
+- **Alternatives:** Pydantic models everywhere.
+- **Why:** "validate at the edges, test the inside". Tool outputs are summaries, so they need their
+  own schemas anyway; keeping them separate means simulator refactors can't silently change the
+  versioned MCP contract. The topology is built by our own seeded code, so tests guard it better
+  than runtime validation on every object. Cost: no runtime type checks (a wrong value like
+  `status = "dwon"` is accepted), covered by D-012 and tests.
+- **Revisit if:** internal objects start arriving from outside (e.g. loading topologies from files).
+
+## D-012: pyright as the static type checker
+- **Date / lesson:** 2026-11-21, L1
+- **Decision:** pyright (dev dependency) in `standard` mode, configured in `[tool.pyright]` for
+  `src` and `tests`, resolving imports from `.venv`.
+- **Alternatives:** mypy; ty (Astral, still 0.0.x beta); no type checker; pyright `strict` mode.
+- **Why:** it's the engine behind Pylance, so VS Code, the terminal and CI report the same errors.
+  Without a checker, "type hints everywhere" is unchecked documentation. `standard` catches real
+  mistakes without strict mode's noise from partly-typed libraries.
+- **Revisit if:** ty becomes stable, or we want `strict` for the simulator package only.
+
+## D-013: Deterministic topology generation
+- **Date / lesson:** 2026-11-22, L1
+- **Decision:** `build_topology(seed)` in `simulator/generator.py`. Each part of the network draws
+  from its own stream, `random.Random(f"{seed}:{part}")` (`"devices"`, `"clients"`). Structure
+  follows a fixed plan (channel plan, WLANs, servers, pools); randomness only where real networks
+  vary (PoE draw, client counts, kinds, MACs, AP choice). Plans are plain tuples and fresh objects
+  are built on every call. Invariant tests run over several seeds.
+- **Alternatives:** one shared random stream; the global `random` module; random channels and
+  structure; module-level model objects.
+- **Why:** per-part streams keep old scenarios stable when one part's generation changes. A
+  planned structure keeps the healthy baseline healthy (random channels would create
+  co-channel evidence, i.e. false alarms). Fresh objects prevent state leaking between topologies.
+  Stream names are part of the seed and must not be renamed once scenarios exist.
+- **Revisit if:** scenarios need different network shapes (move the constants to a config).
+
+## D-014: Network model scope
+- **Date / lesson:** 2026-11-22, L1
+- **Decision:** readable string IDs (`ap-1-01`, `pool-2-10`) and references by ID; one DHCP pool
+  per site and VLAN (addressing `10.<site>.<vlan>.0/24`, servers in `10.0.0.0/24`); pools count
+  leases instead of keeping a lease table; shared DHCP/DNS/RADIUS servers; one radio per AP; no
+  `Vlan` class; only in-use switch ports; client/AP positions deferred to L2; `Client.ip` and
+  `Client.ap_id` are `None` when missing, because that absence is diagnostic evidence.
+- **Alternatives:** UUIDs or integer IDs; object references; one pool per VLAN shared by sites;
+  a MAC→IP lease table; multi-radio APs; modelling all 24 ports.
+- **Why:** the LLM reads IDs and passes them back to tools, so they must be short and
+  unambiguous. Each simplification is stated, not hidden: no planned fault needs the extra detail.
+  The spec's example scenario was corrected to VLAN 10 (laptops are on Corp).
+- **Revisit if:** a fault needs two radios, a lease table or per-port detail.

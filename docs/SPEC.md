@@ -93,7 +93,8 @@ netmedic/
 ├── src/netmedic/
 │   ├── __init__.py            # main(): the `netmedic` command
 │   ├── simulator/
-│   │   ├── topology.py        # sites, switches, APs, clients, VLANs
+│   │   ├── topology.py        # data model: sites, switches, APs, WLANs, pools, clients
+│   │   ├── generator.py       # seeded build_topology(seed)
 │   │   ├── telemetry.py       # metric and event generators
 │   │   ├── faults.py          # fault injectors (one class per fault)
 │   │   └── api.py             # FastAPI: /state, /faults, /reset
@@ -309,12 +310,12 @@ Scenario file example (`evals/scenarios/dhcp_exhausted_site2.yaml`):
 id: dhcp_exhausted_site2
 seed: 42
 fault: dhcp_pool_exhausted
-params: {site: site-2, vlan: 30}
+params: {site: site-2, vlan: 10}  # Corp: laptops live on VLAN 10 (L1 layout)
 active_for_minutes: 45
 complaint: "People in building 2 say their laptops won't connect since this morning."
 expected:
   root_cause: dhcp_pool_exhausted
-  scope: [vlan-30]
+  scope: [pool-2-10]
   key_evidence: [dhcp_pool_full, dhcp_timeouts]
 ```
 

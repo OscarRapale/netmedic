@@ -10,6 +10,7 @@ Update this at the end of every session. Newest entry first.
 
 | Date | Lesson | Status | Notes / next step |
 | --- | --- | --- | --- |
+| 2026-11-22 | L1 Network model | Done | Dataclass model in `simulator/topology.py`; seeded `build_topology()` in `simulator/generator.py` (2 sites, 6 switches, 12 APs, 3 WLANs, 6 pools, 3 servers, ~150 clients; seed 42 → 141 clients); pyright added; 30 tests (7 invariants × 4 seeds + 2 examples). Fixed missing ruff/pytest config from L0 (B-002). Decisions D-011 to D-014. Next: L2 telemetry (needs AP/client positions for RSSI) |
 | 2026-11-20 | L0 Project setup | Done | uv project (Python 3.13, packaged `src/netmedic/` layout), ruff + pytest 9 config, `.gitignore`/`.gitattributes`/`.env.example`, first commit, pushed to public GitHub repo `OscarRapale/netmedic` (branch `main`). Docker Desktop running (≈6.7 GB for Docker). Next: L1 network model |
 | 2026-11-19 | Setup | Starter files added | Next: Lesson 0, project setup |
 
@@ -33,7 +34,7 @@ Update this at the end of every session. Newest entry first.
 ### Week 1: core loop (Gate 1: the agent solves 3 faults from the CLI)
 
 - [x] **L0. Project setup:** uv, folder layout, ruff, pytest, `.env`, first commit (details below)
-- [ ] **L1. Network model:** sites, switches, APs, VLANs, clients as typed models; seeded topology
+- [x] **L1. Network model:** sites, switches, APs, VLANs, clients as typed models; seeded topology
       generation; first tests. Decision: dataclasses vs Pydantic.
 - [ ] **L2. Telemetry:** AP metrics with a daily pattern and noise; client connection events;
       switch ports; DHCP pool usage. Simulated time.
