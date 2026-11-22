@@ -6,6 +6,7 @@ live at the service boundaries (simulator API, MCP tool schemas).
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from ipaddress import IPv4Address, IPv4Network
 
 
 class Status(StrEnum):
@@ -32,6 +33,23 @@ class PoeStatus(StrEnum):
 class Band(StrEnum):
     GHZ_2_4 = "2.4GHz"
     GHZ_5 = "5GHz"
+
+
+class AuthMethod(StrEnum):
+    PSK = "psk"  # one shared password (Guest, IoT)
+    DOT1X = "802.1x"  # per-user login, checked by a RADIUS server (Corp)
+
+
+class ClientKind(StrEnum):
+    LAPTOP = "laptop"
+    PHONE = "phone"
+    IOT = "iot"  # printers, sensors, cameras
+
+
+class ServerKind(StrEnum):
+    DHCP = "dhcp"
+    DNS = "dns"
+    RADIUS = "radius"
 
 
 @dataclass(slots=True, kw_only=True)
@@ -70,3 +88,43 @@ class AccessPoint:
     band: Band  # simplification: one radio per AP (real APs have 2-3)
     channel: int
     status: Status = Status.UP
+
+
+@dataclass(slots=True, kw_only=True)
+class Wlan:
+    ssid: str  # the network name users see: "Corp", "Guest", "IoT"
+    vlan_id: int  # every client on this SSID lands in this VLAN
+    auth: AuthMethod
+
+
+@dataclass(slots=True, kw_only=True)
+class DhcpPool:
+    id: str  # "pool-1-10": site 1, VLAN 10
+    site_id: str
+    vlan_id: int
+    subnet: IPv4Network  # e.g. 10.1.10.0/24
+    size: int  # how many addresses the DHCP server may hand out
+    leased: int = 0
+
+    @property
+    def utilization(self) -> float:
+        """Share of the pool in use, from 0.0 to 1.0."""
+        return self.leased / self.size
+
+
+@dataclass(slots=True, kw_only=True)
+class Server:
+    id: str  # "dhcp-1"
+    kind: ServerKind
+    ip: IPv4Address
+    status: Status = Status.UP
+
+
+@dataclass(slots=True, kw_only=True)
+class Client:
+    mac: str  # "a4:83:e7:12:9c:01": the client's id
+    kind: ClientKind
+    site_id: str
+    ssid: str  # which Wi-Fi network it uses
+    ap_id: str | None = None  # None: not associated to any AP
+    ip: IPv4Address | None = None  # None: no DHCP lease (yet)
