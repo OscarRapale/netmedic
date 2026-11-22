@@ -6,17 +6,25 @@ part is generated doesn't reshuffle the others.
 """
 
 import random
+from ipaddress import IPv4Address, IPv4Network
 
 from netmedic.simulator.topology import (
     AccessPoint,
+    AuthMethod,
     Band,
+    Client,
+    ClientKind,
+    DhcpPool,
     PoeStatus,
     PortMode,
+    Server,
+    ServerKind,
     Site,
     Switch,
     SwitchPort,
     SwitchRole,
     Topology,
+    Wlan,
 )
 
 SITE_NAMES = {1: "Headquarters", 2: "Branch office"}
@@ -37,6 +45,25 @@ CHANNEL_PLAN: dict[int, tuple[Band, int]] = {
     6: (Band.GHZ_2_4, 6),
 }
 
+WLAN_PLAN = (  # SSID, VlAN, login method
+    ("Corp", 10, AuthMethod.DOT1X),
+    ("Guest", 20, AuthMethod.PSK),
+    ("IoT", 30, AuthMethod.PSK),
+)
+SERVER_PLAN = (  # id, kind, IP: shared by both sites
+    ("dhcp-1", ServerKind.DHCP, "10.0.0.10"),
+    ("dns-1", ServerKind.DNS, "10.0.0.11"),
+    ("radius-1", ServerKind.RADIUS, "10.0.0.12"),
+)
+POOL_SIZES = {10: 60, 20: 40, 30: 30}  # per site and VLAN: addresses a pool may hand out
+POOL_FIRST_HOST = 100  # pools hand out .100 upwards; lower addresses are for fixed devices
+CLIENTS_PER_SITE = {10: (35, 45), 20: (15, 25), 30: (10, 20)}  # per VLAN: min, max
+CLIENT_KINDS = {  # per VLAN: possible kinds, and how likely each one is
+    10: ((ClientKind.LAPTOP, ClientKind.PHONE), (3, 1)),  # Corp: mostly laptops
+    20: ((ClientKind.PHONE, ClientKind.LAPTOP), (4, 1)),  # Guest: mostly visitors' phones
+    30: ((ClientKind.IOT,), (1,)),  # IoT: printers, sensors, cameras
+}
+
 
 def rng_for(seed: int, part: str) -> random.Random:
     """Return an independent, reproducible random stream for one part of the network."""
@@ -46,11 +73,30 @@ def rng_for(seed: int, part: str) -> random.Random:
 def build_topology(seed: int) -> Topology:
     """Build the full two-site network for this seed."""
     topo = Topology(seed=seed)
-    rng = rng_for(seed, "devices")
+    devices_rng = rng_for(seed, "devices")
     for site_num in SITE_NAMES:  # dicts keep insertion order: site 1, then site 2
-        add_site(topo, site_num, rng)
-
+        add_site(topo, site_num, devices_rng)
+    add_services(topo)
+    add_clients(topo, rng_for(seed, "clients"))
     return topo
+
+
+def add_services(topo: Topology) -> None:
+    """Add the Wi-Fi networks, the shared servers, and one DHCP pool per site and VLAN."""
+    for ssid, vlan_id, auth in WLAN_PLAN:
+        topo.wlans[ssid] = Wlan(ssid=ssid, vlan_id=vlan_id, auth=auth)
+    for server_id, kind, ip in SERVER_PLAN:
+        topo.servers[server_id] = Server(id=server_id, kind=kind, ip=IPv4Address(ip))
+    for site_num in SITE_NAMES:
+        for vlan_id in VLANS:
+            pool = DhcpPool(
+                id=f"pool-{site_num}-{vlan_id}",
+                site_id=f"site-{site_num}",
+                vlan_id=vlan_id,
+                subnet=IPv4Network(f"10.{site_num}.{vlan_id}.0/24"),  # our addressing plan
+                size=POOL_SIZES[vlan_id],
+            )
+            topo.pools[pool.id] = pool
 
 
 def add_site(topo: Topology, site_num: int, rng: random.Random) -> None:
@@ -107,3 +153,33 @@ def add_access_switch(topo: Topology, site_num: int, sw_num: int, rng: random.Ra
         connected_to=f"core-{site_num}",
     )
     return switch
+
+
+def add_clients(topo: Topology, rng: random.Random) -> None:
+    """Connect clients to each Wi-Fi network at each site, each with a DHCP lease."""
+    for site_num in SITE_NAMES:
+        site_id = f"site-{site_num}"
+        site_aps = [ap.id for ap in topo.aps.values() if ap.site_id == site_id]
+        for wlan in topo.wlans.values():
+            pool = topo.pools[f"pool-{site_num}-{wlan.vlan_id}"]
+            kinds, weights = CLIENT_KINDS[wlan.vlan_id]
+            low, high = CLIENTS_PER_SITE[wlan.vlan_id]
+            for _ in range(rng.randint(low, high)):
+                client = Client(
+                    mac=new_mac(topo, rng),
+                    kind=rng.choices(kinds, weights)[0],
+                    site_id=site_id,
+                    ssid=wlan.ssid,
+                    ap_id=rng.choice(site_aps),
+                    ip=pool.subnet.network_address + POOL_FIRST_HOST + pool.leased,
+                )
+                pool.leased += 1
+                topo.clients[client.mac] = client
+
+
+def new_mac(topo: Topology, rng: random.Random) -> str:
+    """Return a random MAC address that no client in the topology has yet."""
+    while True:
+        mac = ":".join(f"{byte:02x}" for byte in rng.randbytes(6))
+        if mac not in topo.clients:
+            return mac
