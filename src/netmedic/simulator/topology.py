@@ -128,3 +128,17 @@ class Client:
     ssid: str  # which Wi-Fi network it uses
     ap_id: str | None = None  # None: not associated to any AP
     ip: IPv4Address | None = None  # None: no DHCP lease (yet)
+
+
+@dataclass(slots=True, kw_only=True)
+class Topology:
+    """The whole simulated network. Every collection is keyed by id for direct lookups."""
+
+    seed: int
+    sites: dict[str, Site] = field(default_factory=dict)
+    switches: dict[str, Switch] = field(default_factory=dict)
+    aps: dict[str, AccessPoint] = field(default_factory=dict)
+    wlans: dict[str, Wlan] = field(default_factory=dict)  # keyed by SSID
+    pools: dict[str, DhcpPool] = field(default_factory=dict)
+    servers: dict[str, Server] = field(default_factory=dict)
+    clients: dict[str, Client] = field(default_factory=dict)  # keyed by MAC address
